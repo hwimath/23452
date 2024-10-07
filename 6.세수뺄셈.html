@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>휘매쓰 연산 챌린지!</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        #gameContainer {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        #difficultySelection, #gameContent {
+            margin-top: 20px;
+        }
+        button {
+            background-color: #ff7f50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #energyBarContainer {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        #energyBar {
+            height: 100%;
+            width: 100%;
+            background-color: #4CAF50;
+            border-radius: 10px;
+            transition: width 0.1s linear;
+        }
+        #questionDisplay {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        #scoreBoard, #timeDisplay, #chanceDisplay {
+            margin: 10px 0;
+        }
+        #resultMessage {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        #watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>휘매쓰 연산 챌린지!</h1>
+        <div id="difficultySelection">
+            <h2>난이도를 선택하세요:</h2>
+            <button onclick="startGame('상')">상</button>
+            <button onclick="startGame('중')">중</button>
+            <button onclick="startGame('하')">하</button>
+        </div>
+        <div id="gameContent" style="display: none;">
+            <div id="scoreBoard">점수: <span id="score">0</span></div>
+            <div id="timeDisplay">전체 게임 시간: <span id="totalTime">0</span>초</div>
+            <div id="chanceDisplay">남은 기회: <span id="chances">3</span></div>
+            <div id="energyBarContainer">
+                <div id="energyBar"></div>
+            </div>
+            <div id="questionDisplay"></div>
+            <input type="number" id="answerInput">
+            <button onclick="checkAnswer()">제출</button>
+            <div id="resultMessage"></div>
+        </div>
+    </div>
+    <div id="watermark">휘매쓰</div>
+
+    <script>
+        let score = 0;
+        let mistakes = 0;
+        let currentQuestion;
+        let timeLimit;
+        let timer;
+        let gameInterval;
+        let totalGameTime = 0;
+        let totalGameTimer;
+        let difficulty;
+        let pointsPerQuestion;
+        let questionsAnswered = 0;
+        let maxNumber;
+        
+        function startGame(selectedDifficulty) {
+            difficulty = selectedDifficulty;
+            switch(difficulty) {
+                case '상':
+                    timeLimit = 20;
+                    pointsPerQuestion = 20;
+                    maxNumber = 19;
+                    break;
+                case '중':
+                    timeLimit = 30;
+                    pointsPerQuestion = 15;
+                    maxNumber = 15;
+                    break;
+                case '하':
+                    timeLimit = 40;
+                    pointsPerQuestion = 10;
+                    maxNumber = 10;
+                    break;
+            }
+            
+            document.getElementById('difficultySelection').style.display = 'none';
+            document.getElementById('gameContent').style.display = 'block';
+            
+            resetGame();
+            nextQuestion();
+            startTimers();
+        }
+        
+        function resetGame() {
+            score = 0;
+            mistakes = 0;
+            questionsAnswered = 0;
+            totalGameTime = 0;
+            updateDisplay();
+        }
+        
+        function startTimers() {
+            gameInterval = setInterval(updateEnergyBar, 100);
+            totalGameTimer = setInterval(() => {
+                totalGameTime++;
+                document.getElementById('totalTime').textContent = totalGameTime;
+            }, 1000);
+        }
+        
+        function updateEnergyBar() {
+            timer -= 0.1;
+            const energyBar = document.getElementById('energyBar');
+            const width = (timer / timeLimit) * 100;
+            energyBar.style.width = width + '%';
+            
+            if (timer <= 0) {
+                clearInterval(gameInterval);
+                mistakes++;
+                updateDisplay();
+                if (mistakes >= 3) {
+                    endGame();
+                } else {
+                    nextQuestion();
+                    startTimers();  // 타이머를 다시 시작
+                }
+            }
+        }
+        
+        function nextQuestion() {
+            questionsAnswered++;
+            timeLimit *= 0.99;  // 시간이 1%씩 빨라짐
+            timer = timeLimit;
+            
+            const answer = Math.floor(Math.random() * (maxNumber - 2)) + 1;  // 1부터 (maxNumber-2)까지의 답
+            const num2 = Math.floor(Math.random() * (maxNumber - answer - 1)) + 1;  // 1부터 (maxNumber-answer-1)까지
+            const num3 = Math.floor(Math.random() * (maxNumber - answer - num2)) + 1;  // 1부터 (maxNumber-answer-num2)까지
+            const num1 = answer + num2 + num3;
+            
+            currentQuestion = {
+                question: `${num1} - ${num2} - ${num3}`,
+                answer: answer
+            };
+            
+            document.getElementById('questionDisplay').innerHTML = `\\(${currentQuestion.question} = ?\\)`;
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, "questionDisplay"]);
+            document.getElementById('answerInput').value = '';
+            document.getElementById('resultMessage').textContent = '';
+        }
+        
+        function checkAnswer() {
+            const userAnswer = parseInt(document.getElementById('answerInput').value);
+            if (userAnswer === currentQuestion.answer) {
+                score += pointsPerQuestion;
+                document.getElementById('resultMessage').textContent = '정답입니다!';
+                nextQuestion();
+            } else {
+                mistakes++;
+                document.getElementById('resultMessage').innerHTML = `틀렸습니다. 정답은 ${currentQuestion.answer}입니다.`;
+                if (mistakes >= 3) {
+                    endGame();
+                } else {
+                    nextQuestion();
+                }
+            }
+            updateDisplay();
+        }
+        
+        function updateDisplay() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('chances').textContent = 3 - mistakes;
+        }
+        
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(totalGameTimer);
+            document.getElementById('gameContent').innerHTML = `
+                <h2>게임 종료!</h2>
+                <p>최종 점수: ${score}</p>
+                <p>총 게임 시간: ${totalGameTime}초</p>
+                <p>난이도: ${difficulty}</p>
+                <button onclick="location.reload()">다시 시작</button>
+            `;
+        }
+    </script>
+</body>
+</html>
